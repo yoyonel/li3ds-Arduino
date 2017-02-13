@@ -23,7 +23,7 @@
 #include "li3ds_time.h"
 #include "li3ds_camlight.h"
 #include "li3ds_pps.h"
-
+#include "PILOTE-PLATEFORME-LI3DS.h"
 
 inline void activateTrig();
 inline void desactivateTrig();
