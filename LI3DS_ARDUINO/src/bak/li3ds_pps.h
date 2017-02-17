@@ -11,8 +11,7 @@ inline void pps_activate_trig();
 inline void pps_desactivate_trig();
 
 
-//const byte ppsPin = 12;   // montage proto dev
-const byte ppsPin = 10;     // montage de Yann
+const byte ppsPin = 12;
 
 
 void pps_setup() {

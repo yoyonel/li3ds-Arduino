@@ -1,5 +1,6 @@
 // url: http://answers.ros.org/question/202215/rosserial-arduino-tfbroadcaster-contradicts-using-publisher/?answer=206501#post-id-206501
 #define __AVR_ATmega8__
+#define USB_CON
 
 // url: https://github.com/Robot-Will/Stino/issues/1
 #include <Arduino.h>
@@ -12,7 +13,6 @@
 // url: https://github.com/Robot-Will/Stino/issues/148
 #include <SoftwareSerial.h>
 //
-#define USB_CON
 #include <ros.h>
 //#include <std_msgs/String.h>
 #include <std_msgs/Int32.h>
@@ -21,10 +21,9 @@
 
 #include "li3ds_gps.h"
 #include "li3ds_time.h"
-//#include "li3ds_camlight.h"
-#include "li3ds_leds.h"
+#include "li3ds_camlight.h"
 #include "li3ds_pps.h"
-
+#include "PILOTE-PLATEFORME-LI3DS.h"
 
 inline void activateTrig();
 inline void desactivateTrig();
@@ -38,15 +37,18 @@ const byte ledPin = 13; // for led pin
 volatile int buttonState = 0;         // variable for reading the pushbutton status
 
 // url: http://answers.ros.org/question/28890/using-rosserial-for-a-atmega168arduino-based-motorcontroller/
+// ros::NodeHandle_<HardwareType, MAX_PUBLISHERS=25, MAX_SUBSCRIBERS=25, IN_BUFFER_SIZE=512, OUT_BUFFER_SIZE=512> nh;
+#define ROS_MAX_PUBLISHERS  2
+#define ROS_MAX_SUBSCRIBERS 0
+#define ROS_IN_BUFFER_SIZE  160     // TODO: compter (concretement/precisement) la taille (max) des buffers qu'on envoie
+#define ROS_OUT_BUFFER_SIZE 210     // pareil qu'au dessus !
 // ros::NodeHandle  nh;
 //ros::NodeHandle_<ArduinoHardware, 2, 2, 80, 105> nh;
-ros::NodeHandle_<ArduinoHardware, 1, 2, 8, 150> nh;   // MAX_SUBSCRIBERS, MAX_PUBLISHERS, INPUT_SIZE, and OUTPUT_SIZE
-// ros::NodeHandle nh;     // standard settings (depend on which Arduino board we have)
+ros::NodeHandle_<ArduinoHardware, ROS_MAX_PUBLISHERS, ROS_MAX_SUBSCRIBERS, ROS_IN_BUFFER_SIZE, ROS_OUT_BUFFER_SIZE> nh;
 
 //#define BAUDS 9600
 #define BAUDS 115200    // ps: faire attention à la vitesse de transfert, ca peut être sensible
                         // et provoquer des erreurs/warnings avec ROS::Rosserial
-//#define BAUDS 57600
 
 //std_msgs::Int32 msg_arduino_trig;
 //ros::Publisher chatter("arduino_trig", &msg_arduino_trig);
@@ -62,15 +64,10 @@ ros::Publisher chatter_2("arduino_trig_timestamp", &msg_arduino_trig_timestamp);
  * @brief setup
  */
 void setup() {
-    char c_log[50];
-
-    nh.loginfo("Init ROS");
     //------------------
     // Init ROS
     //------------------
     // url: http://answers.ros.org/question/192356/solved-serial-port-read-returned-short-error-with-arduino-uno-via-bluetootle-with-rosserial/
-    sprintf(c_log, "Set baud to %d", BAUDS);
-    nh.loginfo(c_log);
     nh.getHardware()->setBaud(BAUDS);
     nh.initNode();
 
@@ -95,13 +92,7 @@ void setup() {
     //--------------------------
     // CamLight
     //--------------------------
-    //camlight_setup(nh);
-
-    //--------------------------
-    // LEDS
-    //--------------------------
-    //led_setup(nh);
-
+    camlight_setup(nh);
 
     //--------------------------
     // Interruption
@@ -128,7 +119,7 @@ void setup() {
  */
 void loop() {
     // Calcul du temps et temporisation 1hz
-    time_loop(nh);  // on passe le gestionnaire de node ROS
+    time_loop();
 
     // A la fin de la seconde, on lance les process
     // - Activation du trig electrique: PPS
@@ -143,8 +134,7 @@ void loop() {
     // ps: On pourrait tout simplement recabler le fil de la CamLight
     // sur la pin du PPS (12)
     activateTrig();
-    // camlight_loop();
-    //led_loop();
+    camlight_loop();
 
     // problem avec ROSSERIAL et les pins interrupts d'arduino (pb de synch.)
     // on active le trig cote arduino "a la main"
@@ -185,13 +175,11 @@ inline void receiveTrig()
     // url: https://www.arduino.cc/en/Reference/Micros
     msg_arduino_trig.data = micros();  // get Arduino clock
     chatter.publish( &msg_arduino_trig );  // send ROS message with this clock
-
     //
     msg_arduino_trig_timestamp.seq = id_trig;
     msg_arduino_trig_timestamp.stamp = nh.now();
     msg_arduino_trig_timestamp.frame_id = gprmc;
     chatter_2.publish( &msg_arduino_trig_timestamp );
-
     //
     nh.spinOnce();
 }

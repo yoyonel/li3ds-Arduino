@@ -1,4 +1,7 @@
 #!/bin/bash
-cd build/
-make -j3
-cd -
+
+./configure.sh
+
+mkdir -p build/; cd build
+
+make -j
